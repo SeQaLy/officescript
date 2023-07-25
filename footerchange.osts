@@ -1,0 +1,72 @@
+// ページの高さ
+const PAGE_SIZE = 39
+
+function main(workbook: ExcelScript.Workbook) {
+  let firstSheet = workbook.getFirstWorksheet()
+  recursiveSheet(firstSheet)
+}
+
+// 対シート再帰的関数
+function recursiveSheet(sheet: ExcelScript.Worksheet) {
+  let lastRow = getLastRow(sheet)
+  let pageCount = lastRow / PAGE_SIZE
+  /*******/
+
+
+  /*******/
+
+  // 自動シート名入力
+  autoFillSheetName( sheet, pageCount )
+  // 自動採番
+  autoNumbering( sheet, pageCount )
+
+  let nextSheet = sheet.getNext()
+  if ( nextSheet ) {
+    recursiveSheet(nextSheet)
+  }
+}
+
+// 自動採番
+function autoNumbering( sheet:ExcelScript.Worksheet, pageCount:number ) {
+  let pageInsertPos = PAGE_SIZE
+  for (let i = 0; i < pageCount; i++) {
+    // 毎シートの1ページ目
+    if (i == 0) {
+      // 前のシートがない時(先頭シート)
+      if (!sheet.getPrevious()) {
+        sheet.getRange(`AP${pageInsertPos}`).setValue("1")
+        // 2ページ目以降の最初のページNO
+      } else {
+        let previousSheet = sheet.getPrevious()
+
+        if (previousSheet) {
+          let previousPageLastPageNo = previousSheet.getRange(`AP${getLastRow(previousSheet) - 1}`).getValue()
+          sheet.getRange(`AP${pageInsertPos}`).setValue(Number(previousPageLastPageNo) + 1)
+        }
+      }
+    } else {
+      let previousPageNo = sheet.getRange(`AP${pageInsertPos - 1 - PAGE_SIZE}`).getValue()
+      sheet.getRange(`AP${pageInsertPos}`).setValue(Number(previousPageNo) + 1)
+    }
+    pageInsertPos += PAGE_SIZE
+  }
+}
+
+// シート名入力
+function autoFillSheetName( sheet:ExcelScript.Worksheet, pageCount:number ) {
+  let sheetName = ""
+  // シート名が"1.概要"のような採番がされていた場合に"概要"を切り抜く
+  sheetName = sheet.getName().split(".")[1] == undefined ? sheet.getName() : sheet.getName().split(".")[1]
+  let sheetNameInsertPos = 36 // magic number
+  for ( let i = 0; i < pageCount; i++ ) {
+    sheet.getRange( `AP${sheetNameInsertPos + (PAGE_SIZE * i)}` ).setValue( sheetName )
+  }
+}
+
+// 引数シートの最終行番
+function getLastRow(sheet: ExcelScript.Worksheet) {
+  let usedRange = sheet.getUsedRange()
+  let lastRowIndex = usedRange.getRowCount()
+  return lastRowIndex
+}
+
